@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Royal Pet Calendar</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <style>
+        body {
+            background-image: url('grooming.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #2c3e50;
+            font-family: 'Josefin Sans', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 120px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: -1;
+        }
+
+        .container {
+            text-align: center;
+            z-index: 1;
+        }
+
+        .calendar {
+            width: 350px;
+            margin: 20px auto 15px;
+            background: rgba(255, 255, 255, 0.88);
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .calendar__month {
+            font-size: 22px;
+            font-weight: 700;
+            padding: 20px 0;
+            position: relative;
+            background: linear-gradient(135deg, #008080, #20b2aa);
+            color: white;
+        }
+
+        .cal-month__previous, .cal-month__next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            text-align: center;
+            line-height: 36px;
+            font-size: 20px;
+            color: white;
+            border-radius: 50%;
+        }
+
+        .cal-month__next { right: 20px; }
+        .cal-month__previous { left: 20px; }
+
+        .cal-month__current { text-align: center; color: white; font-weight: 600; }
+
+        .calendar__head {
+            background: #f1f5f9;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cal-head__day, .cal-body__day {
+            width: 50px;
+            height: 50px;
+            float: left;
+            line-height: 50px;
+            text-align: center;
+        }
+
+        .cal-body__day {
+            color: #475569;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cal-body__day:hover:not(.past) {
+            background-color: #e0f2f1;
+        }
+
+        .cal-body__day.past {
+            color: #cbd5e1;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .cal-day__day--today {
+            font-weight: 700;
+            color: #008080;
+            position: relative;
+        }
+        .cal-day__day--today:after {
+            content: '';
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 5px;
+            background: #008080;
+            border-radius: 50%;
+        }
+
+        .cal-day__day--selected {
+            background-color: #008080 !important;
+            color: white !important;
+            border-radius: 50%;
+        }
+
+        .cal-body__week:after {
+            content: ""; display: table; clear: both;
+        }
+
+        .confirm-btn {
+            display: block;
+            width: 350px;
+            margin: 10px auto 40px;
+            padding: 15px;
+            background: linear-gradient(135deg, #008080, #20b2aa);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 128, 128, 0.3);
+        }
+
+        .confirm-btn:hover { transform: translateY(-3px); }
+        .confirm-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 460px;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 32px;
+            cursor: pointer;
+            color: #94a3b8;
+            font-weight: bold;
+            line-height: 1;
+            z-index: 10;
+        }
+
+        .close:hover {
+            color: #ef4444;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-top: 10px;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #008080;
+        }
+
+        .selected-dates {
+            background: #f0f9f9;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-height: 160px;
+            overflow-y: auto;
+            font-size: 14.5px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="calendar">
+            <div class="calendar__month">
+                <div class="cal-month__previous">&lt;</div>
+                <div class="cal-month__current"></div>
+                <div class="cal-month__next">&gt;</div>
+            </div>
+            <div class="calendar__head">
+                <div class="cal-head__day"></div>
+                <div class="cal-head__day"></div>
+                <div class="cal-head__day"></div>
+                <div class="cal-head__day"></div>
+                <div class="cal-head__day"></div>
+                <div class="cal-head__day"></div>
+                <div class="cal-head__day"></div>
+            </div>
+            <div class="calendar__body"></div>
+        </div>
+
+        <button id="confirmBtn" class="confirm-btn" disabled>Confirm Selected Dates</button>
+    </div>
+
+    <!-- Request Modal -->
+    <div id="requestModal" class="modal">
+        <div class="modal-content">
+            <span class="close" title="Back to Calendar">&times;</span>
+            
+            <div class="modal-header">
+                <div class="modal-title">Request Appointment</div>
+            </div>
+            
+            <div id="selectedDatesDisplay" class="selected-dates"></div>
+
+            <form id="appointmentForm">
+                <div class="form-group"><label>First Name</label><input type="text" id="firstName" required></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="lastName" required></div>
+                <div class="form-group"><label>Phone Number</label><input type="tel" id="phone" required></div>
+                <div class="form-group"><label>Full Address</label><textarea id="address" rows="2" required></textarea></div>
+                <div class="form-group"><label>Pet's Name</label><input type="text" id="petName" required></div>
+                <div class="form-group"><label>Breed</label><input type="text" id="breed" required></div>
+                <div class="form-group"><label>Weight (lbs)</label><input type="text" id="weight" required></div>
+
+                <button type="submit" class="confirm-btn" style="margin-top: 10px;">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class Calendar {
+            constructor() {
+                this.monthDiv = document.querySelector('.cal-month__current');
+                this.headDivs = document.querySelectorAll('.cal-head__day');
+                this.bodyDivs = [];
+                this.nextDiv = document.querySelector('.cal-month__next');
+                this.prevDiv = document.querySelector('.cal-month__previous');
+                this.selectedDates = [];
+                this.confirmBtn = document.getElementById('confirmBtn');
+                this.today = moment().startOf('day');
+            }
+
+            init() {
+                moment.locale(window.navigator.userLanguage || window.navigator.language || 'en');
+
+                const calendarBody = document.querySelector('.calendar__body');
+                calendarBody.innerHTML = '';
+                for (let i = 0; i < 6; i++) {
+                    const week = document.createElement('div');
+                    week.className = 'cal-body__week';
+                    for (let j = 0; j < 7; j++) {
+                        const day = document.createElement('div');
+                        day.className = 'cal-body__day';
+                        week.appendChild(day);
+                        this.bodyDivs.push(day);
+                    }
+                    calendarBody.appendChild(week);
+                }
+
+                this.month = moment();
+                this.weekDays = moment.weekdaysShort(true);
+
+                this.headDivs.forEach((day, index) => day.innerText = this.weekDays[index]);
+
+                this.nextDiv.addEventListener('click', () => this.addMonth());
+                this.prevDiv.addEventListener('click', () => this.removeMonth());
+
+                this.bodyDivs.forEach(day => day.addEventListener('click', (e) => this.handleDateClick(e)));
+
+                this.confirmBtn.addEventListener('click', () => this.showRequestModal());
+
+                this.update();
+            }
+
+            isPastDate(date) {
+                return date.isBefore(this.today, 'day');
+            }
+
+            handleDateClick(e) {
+                const dayNum = parseInt(e.target.innerHTML);
+                if (!dayNum) return;
+
+                let clickedMoment;
+                if (e.target.classList.contains('cal-day__month--next')) {
+                    clickedMoment = this.month.clone().add(1, 'month').date(dayNum);
+                } else if (e.target.classList.contains('cal-day__month--previous')) {
+                    clickedMoment = this.month.clone().subtract(1, 'month').date(dayNum);
+                } else {
+                    clickedMoment = this.month.clone().date(dayNum);
+                }
+
+                if (this.isPastDate(clickedMoment)) return;
+
+                const index = this.selectedDates.findIndex(d => d.isSame(clickedMoment, 'day'));
+                if (index > -1) {
+                    this.selectedDates.splice(index, 1);
+                } else {
+                    this.selectedDates.push(clickedMoment.clone());
+                }
+
+                this.update();
+            }
+
+            showRequestModal() {
+                if (this.selectedDates.length === 0) return;
+                const modal = document.getElementById('requestModal');
+                const datesDisplay = document.getElementById('selectedDatesDisplay');
+                
+                let html = '<strong>Selected Dates:</strong><br>';
+                this.selectedDates.sort((a, b) => a - b).forEach(date => {
+                    html += `• ${date.format('dddd, MMMM D, YYYY')}<br>`;
+                });
+                datesDisplay.innerHTML = html;
+                modal.style.display = 'flex';
+            }
+
+            update() {
+                this.calendarDays = { first: this.month.clone().startOf('month').startOf('week').date() };
+                this.monthDays = {
+                    lastPrevious: this.month.clone().subtract(1, 'months').endOf('month').date(),
+                    lastCurrent: this.month.clone().endOf('month').date()
+                };
+
+                this.monthString = this.month.clone().format('MMMM YYYY');
+                this.monthDiv.innerText = this.monthString;
+
+                let index = 0;
+                if (this.calendarDays.first > 1) {
+                    for (let day = this.calendarDays.first; day <= this.monthDays.lastPrevious; index++) {
+                        this.bodyDivs[index].innerText = day++;
+                        this.cleanDay(this.bodyDivs[index]);
+                        this.bodyDivs[index].classList.add('cal-day__month--previous');
+                    }
+                }
+
+                let isNextMonth = false;
+                for (let day = 1; index < this.bodyDivs.length; index++) {
+                    if (day > this.monthDays.lastCurrent) {
+                        day = 1;
+                        isNextMonth = true;
+                    }
+                    this.cleanDay(this.bodyDivs[index]);
+
+                    const currentDayMoment = isNextMonth 
+                        ? this.month.clone().add(1, 'month').date(day)
+                        : this.month.clone().date(day);
+
+                    const isPast = this.isPastDate(currentDayMoment);
+                    const isSelected = this.selectedDates.some(d => d.isSame(currentDayMoment, 'day'));
+
+                    if (isPast) {
+                        this.bodyDivs[index].classList.add('past');
+                    } else if (!isNextMonth) {
+                        if (day === this.today.date() && this.today.isSame(this.month, 'day')) {
+                            this.bodyDivs[index].classList.add('cal-day__day--today');
+                        }
+                        if (isSelected) this.bodyDivs[index].classList.add('cal-day__day--selected');
+                        this.bodyDivs[index].classList.add('cal-day__month--current');
+                    } else {
+                        this.bodyDivs[index].classList.add('cal-day__month--next');
+                        if (isSelected) this.bodyDivs[index].classList.add('cal-day__day--selected');
+                    }
+                    this.bodyDivs[index].innerText = day++;
+                }
+
+                this.confirmBtn.disabled = this.selectedDates.length === 0;
+            }
+
+            cleanDay(dayEl) {
+                dayEl.classList.remove('cal-day__month--previous', 'cal-day__month--next', 'cal-day__month--current', 'cal-day__day--today', 'cal-day__day--selected', 'past');
+            }
+
+            addMonth() { this.month.add(1, 'month'); this.update(); }
+            removeMonth() { this.month.subtract(1, 'month'); this.update(); }
+        }
+
+        const cal = new Calendar();
+        cal.init();
+
+        // Form submission - Send to email
+        document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const dates = cal.selectedDates.map(d => d.format('dddd, MMMM D, YYYY')).join('\n');
+            
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const phone = document.getElementById('phone').value;
+            const address = document.getElementById('address').value;
+            const petName = document.getElementById('petName').value;
+            const breed = document.getElementById('breed').value;
+            const weight = document.getElementById('weight').value;
+
+            const subject = `New Appointment Request - ${firstName} ${lastName}`;
+            const body = `New Appointment Request\n\n` +
+                        `Client: ${firstName} ${lastName}\n` +
+                        `Phone: ${phone}\n` +
+                        `Address: ${address}\n\n` +
+                        `Pet Name: ${petName}\n` +
+                        `Breed: ${breed}\n` +
+                        `Weight: ${weight} lbs\n\n` +
+                        `Requested Dates:\n${dates}`;
+
+            // Open default email client
+            const mailtoLink = `mailto:royalpalacegrooming@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailtoLink;
+
+            alert("✅ Opening your email client with the request details.\n\nPlease send the email to complete the submission.");
+            
+            // Close modal
+            document.getElementById('requestModal').style.display = 'none';
+        });
+
+        // Close modal with X
+        document.querySelector('.close').addEventListener('click', () => {
+            document.getElementById('requestModal').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
